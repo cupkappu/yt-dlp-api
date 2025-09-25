@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  ytdlp-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - DEBUG=false
+      - MAX_CONCURRENT_DOWNLOADS=3
+      - TEMP_DIR=/tmp/ytdlp_api
+      - MAX_TASK_AGE_HOURS=1
+      - CHUNK_SIZE=8192
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./downloads:/tmp/ytdlp_api:rw
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Add Redis for task queue (if needed in future)
+  # redis:
+  #   image: redis:7-alpine
+  #   ports:
+  #     - "6379:6379"
+  #   restart: unless-stopped
