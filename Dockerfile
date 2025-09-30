@@ -1,5 +1,5 @@
 # Use Node.js 18 LTS as base image
-FROM node:18-alpine
+FROM node:18-alpine AS production
 
 # Install system dependencies
 RUN apk add --no-cache \
