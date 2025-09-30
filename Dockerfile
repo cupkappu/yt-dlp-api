@@ -1,32 +1,51 @@
-FROM python:3.11-slim
+# Use Node.js 18 LTS as base image
+FROM node:18-alpine
+
+# Install system dependencies
+RUN apk add --no-cache \
+    ffmpeg \
+    python3 \
+    py3-pip \
+    curl \
+    && rm -rf /var/cache/apk/*
+
+# Install yt-dlp using pip
+RUN pip3 install --no-cache-dir --break-system-packages yt-dlp
 
 # Set working directory
 WORKDIR /app
 
-# Install minimal system dependencies (only curl for health check)
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+# Copy package files
+COPY package*.json ./
 
-# Copy requirements and install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Node.js dependencies (including dev dependencies for building)
+RUN npm ci
 
-# Install yt-dlp from the reference directory
-COPY reference/yt-dlp ./yt-dlp-source
-RUN pip install --no-cache-dir ./yt-dlp-source
+# Copy source code
+COPY src/ ./src/
+COPY tsconfig.json ./
 
-# Copy application code
-COPY main.py .
-COPY .env.example .env
+# Build the TypeScript code
+RUN npm run build
 
-# Create temporary directory
-RUN mkdir -p /tmp/ytdlp_api
+# Remove dev dependencies to reduce image size
+RUN npm prune --production
 
-# Expose port
-EXPOSE 8000
+# Create a non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S mcp -u 1001
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+# Change ownership of the app directory
+RUN chown -R mcp:nodejs /app
+USER mcp
 
-# Start the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Expose port (if needed for future extensions)
+# EXPOSE 3000
+
+# Set the default command
+CMD ["node", "dist/index.js"]
+
+# Add labels for better container management
+LABEL maintainer="yt-dlp-mcp-server"
+LABEL description="Model Context Protocol server for yt-dlp video operations"
+LABEL version="1.0.0"

@@ -1,0 +1,273 @@
+#!/usr/bin/env node
+
+import { Server } from "../node_modules/@modelcontextprotocol/sdk/dist/server/index.js";
+import { StdioServerTransport } from "../node_modules/@modelcontextprotocol/sdk/dist/server/stdio.js";
+import {
+  CallToolRequestSchema,
+  ErrorCode,
+  ListToolsRequestSchema,
+  McpError,
+} from "../node_modules/@modelcontextprotocol/sdk/dist/types.js";
+import { spawn } from "child_process";
+import { promisify } from "util";
+import { exec as execCallback } from "child_process";
+
+const exec = promisify(execCallback);
+
+class YtDlpMcpServer {
+  private server: Server;
+
+  constructor() {
+    this.server = new Server(
+      {
+        name: "yt-dlp-mcp-server",
+        version: "1.0.0",
+      },
+      {
+        capabilities: {
+          tools: {},
+        },
+      }
+    );
+
+    this.setupToolHandlers();
+  }
+
+  private setupToolHandlers() {
+    // List available tools
+    this.server.setRequestHandler(ListToolsRequestSchema, async () => {
+      return {
+        tools: [
+          {
+            name: "extract_info",
+            description: "Extract video information (title, duration, formats) without downloading",
+            inputSchema: {
+              type: "object",
+              properties: {
+                url: {
+                  type: "string",
+                  description: "Video URL to extract information from",
+                },
+                include_formats: {
+                  type: "boolean",
+                  description: "Whether to include format information",
+                  default: true,
+                },
+              },
+              required: ["url"],
+            },
+          },
+          {
+            name: "list_formats",
+            description: "List available video formats for a given URL",
+            inputSchema: {
+              type: "object",
+              properties: {
+                url: {
+                  type: "string",
+                  description: "Video URL to list formats for",
+                },
+              },
+              required: ["url"],
+            },
+          },
+          {
+            name: "download_video",
+            description: "Download a video with specified options",
+            inputSchema: {
+              type: "object",
+              properties: {
+                url: {
+                  type: "string",
+                  description: "Video URL to download",
+                },
+                format: {
+                  type: "string",
+                  description: "Format selector (e.g., 'best', 'worst', '22')",
+                  default: "best",
+                },
+                output_path: {
+                  type: "string",
+                  description: "Output file path (optional, uses yt-dlp default if not specified)",
+                },
+                extract_audio: {
+                  type: "boolean",
+                  description: "Extract audio only",
+                  default: false,
+                },
+                audio_format: {
+                  type: "string",
+                  description: "Audio format when extracting audio (mp3, m4a, etc.)",
+                  default: "mp3",
+                },
+              },
+              required: ["url"],
+            },
+          },
+        ],
+      };
+    });
+
+    // Handle tool calls
+    this.server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
+      const { name, arguments: args } = request.params;
+
+      try {
+        switch (name) {
+          case "extract_info":
+            return await this.handleExtractInfo(args);
+          case "list_formats":
+            return await this.handleListFormats(args);
+          case "download_video":
+            return await this.handleDownloadVideo(args);
+          default:
+            throw new McpError(
+              ErrorCode.MethodNotFound,
+              `Unknown tool: ${name}`
+            );
+        }
+      } catch (error) {
+        throw new McpError(
+          ErrorCode.InternalError,
+          `Tool execution failed: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    });
+  }
+
+  private async runYtDlpCommand(args: string[]): Promise<{ stdout: string; stderr: string }> {
+    return new Promise((resolve, reject) => {
+      const ytDlpProcess = spawn('yt-dlp', args, {
+        cwd: process.cwd(),
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+
+      let stdout = "";
+      let stderr = "";
+
+      ytDlpProcess.stdout?.on("data", (data) => {
+        stdout += data.toString();
+      });
+
+      ytDlpProcess.stderr?.on("data", (data) => {
+        stderr += data.toString();
+      });
+
+      ytDlpProcess.on("close", (code) => {
+        if (code === 0) {
+          resolve({ stdout, stderr });
+        } else {
+          reject(new Error(`yt-dlp exited with code ${code}: ${stderr}`));
+        }
+      });
+
+      ytDlpProcess.on("error", (error) => {
+        reject(new Error(`Failed to start yt-dlp: ${error.message}`));
+      });
+    });
+  }
+
+  private async handleExtractInfo(args: any) {
+    const { url, include_formats = true } = args;
+
+    if (!url || typeof url !== "string") {
+      throw new Error("URL is required and must be a string");
+    }
+
+    const commandArgs = [
+      "--dump-json",
+      "--no-download",
+      url
+    ];
+
+    // Note: include_formats parameter is kept for API compatibility
+    // but yt-dlp --dump-json always includes format information
+    // To exclude formats, we would need to parse and filter the JSON
+
+    const { stdout } = await this.runYtDlpCommand(commandArgs);
+
+    try {
+      const info = JSON.parse(stdout.trim());
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(info, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      throw new Error(`Failed to parse yt-dlp output: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  private async handleListFormats(args: any) {
+    const { url } = args;
+
+    if (!url || typeof url !== "string") {
+      throw new Error("URL is required and must be a string");
+    }
+
+    const commandArgs = [
+      "--list-formats",
+      "--no-download",
+      url
+    ];
+
+    const { stdout, stderr } = await this.runYtDlpCommand(commandArgs);
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: stdout || stderr,
+        },
+      ],
+    };
+  }
+
+  private async handleDownloadVideo(args: any) {
+    const { url, format = "best", output_path, extract_audio = false, audio_format = "mp3" } = args;
+
+    if (!url || typeof url !== "string") {
+      throw new Error("URL is required and must be a string");
+    }
+
+    const commandArgs = [];
+
+    if (output_path) {
+      commandArgs.push("-o", output_path);
+    }
+
+    if (extract_audio) {
+      commandArgs.push("-x", "--audio-format", audio_format);
+    } else {
+      commandArgs.push("-f", format);
+    }
+
+    commandArgs.push(url);
+
+    const { stdout, stderr } = await this.runYtDlpCommand(commandArgs);
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Download completed successfully.\n${stdout || stderr}`,
+        },
+      ],
+    };
+  }
+
+  async run() {
+    const transport = new StdioServerTransport();
+    await this.server.connect(transport);
+    console.error("yt-dlp MCP server running on stdio");
+  }
+}
+
+const server = new YtDlpMcpServer();
+server.run().catch((error) => {
+  console.error("Server error:", error);
+  process.exit(1);
+});

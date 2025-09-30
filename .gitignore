@@ -1,13 +1,20 @@
-# Python
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+dist/
+build/
+
+# Python (for yt-dlp)
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-build/
 develop-eggs/
-dist/
-downloads/
 downloads/
 eggs/
 .eggs/
@@ -32,14 +39,14 @@ ENV/
 env.bak/
 venv.bak/
 
-# IDE
+# IDE and editors
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# OS
+# OS generated files
 .DS_Store
 .DS_Store?
 ._*
@@ -57,20 +64,25 @@ server.log
 *.tmp
 *.temp
 server.pid
-/tmp/ytdlp_api/
+tmp/
+temp/
 
 # Docker
 .dockerignore
 
-# Test files
+# Test files and directories
 test_downloads/
 test_*
+coverage/
 
-# Configuration files (except example)
-.env
+# Configuration files
 config.json
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
-# Downloaded files (should not be committed)
+# Downloaded media files
 *.mp4
 *.webm
 *.mkv
@@ -84,7 +96,6 @@ config.json
 *.jpg
 *.png
 *.webp
-*.json
 *.vtt
 *.srt
 *.ass
@@ -92,5 +103,13 @@ config.json
 # Backup files
 *.bak
 *.backup
+*.orig
 
+# Reference directory (external yt-dlp repo)
 reference/
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
