@@ -192,3 +192,5 @@ docker logs yt-dlp-mcp
 ## Example
 
 The server has been tested with YouTube videos and successfully extracts detailed video information including formats, metadata, and download URLs.
+
+For detailed examples of using the upload functionality with WebDAV and S3, see [UPLOAD_EXAMPLES.md](UPLOAD_EXAMPLES.md).
