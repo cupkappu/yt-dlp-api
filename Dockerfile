@@ -1,16 +1,20 @@
-# Use Node.js 18 LTS as base image
-FROM node:18-alpine AS production
+# Use Ubuntu base for better compatibility with Whisper
+FROM node:18 AS production
 
 # Install system dependencies
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y \
     ffmpeg \
     python3 \
-    py3-pip \
+    python3-pip \
     curl \
-    && rm -rf /var/cache/apk/*
+    git \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install yt-dlp using pip
-RUN pip3 install --no-cache-dir --break-system-packages yt-dlp
+# Install yt-dlp and OpenAI Whisper using pip
+RUN pip3 install --no-cache-dir --break-system-packages yt-dlp openai-whisper
+
+# Verify installations
+RUN yt-dlp --version && python3 -c "import whisper; print('Whisper installed successfully')"
 
 # Set working directory
 WORKDIR /app
@@ -32,11 +36,14 @@ RUN npm run build
 RUN npm prune --production
 
 # Create a non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S mcp -u 1001
+RUN groupadd -g 1001 nodejs && \
+    useradd -r -u 1001 -g nodejs -m mcp
 
 # Change ownership of the app directory
 RUN chown -R mcp:nodejs /app
+
+# Pre-download Whisper models to avoid permission issues
+RUN python3 -c "import whisper; whisper.load_model('tiny'); whisper.load_model('base')"
 USER mcp
 
 # Expose port (if needed for future extensions)
