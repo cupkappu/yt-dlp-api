@@ -6,7 +6,7 @@ A Model Context Protocol (MCP) server that provides tools for video downloading 
 
 - **extract_info**: Extract video information without downloading
 - **list_formats**: List available video formats and qualities
-- **download_video**: Download videos with customizable options
+- **download_video**: Download videos with customizable options and optional upload to WebDAV or S3
 
 ## Docker Usage (Recommended)
 
@@ -94,7 +94,7 @@ List available video formats for a given URL.
 - `url` (string, required): Video URL to list formats for
 
 ### download_video
-Download a video with specified options.
+Download a video with specified options, and optionally upload to WebDAV or S3.
 
 **Parameters:**
 - `url` (string, required): Video URL to download
@@ -102,6 +102,57 @@ Download a video with specified options.
 - `output_path` (string, optional): Output file path (uses yt-dlp default if not specified)
 - `extract_audio` (boolean, optional): Extract audio only (default: false)
 - `audio_format` (string, optional): Audio format when extracting audio (mp3, m4a, etc.) (default: 'mp3')
+- `upload_config` (object, optional): Configuration for uploading the downloaded file
+  - `type` (string): Upload destination type, either 'webdav' or 's3'
+  - `webdav` (object): WebDAV configuration (required if type is 'webdav')
+    - `url` (string): WebDAV server URL
+    - `username` (string): WebDAV username
+    - `password` (string): WebDAV password
+    - `remotePath` (string, optional): Remote directory path
+  - `s3` (object): S3 configuration (required if type is 's3')
+    - `endpoint` (string, optional): S3 endpoint URL (for S3-compatible services)
+    - `region` (string): AWS region
+    - `bucket` (string): S3 bucket name
+    - `accessKeyId` (string): AWS access key ID
+    - `secretAccessKey` (string): AWS secret access key
+    - `prefix` (string, optional): S3 key prefix
+    - `publicUrl` (string, optional): Public URL base for downloaded files
+
+**Example with WebDAV upload:**
+```json
+{
+  "url": "https://example.com/video",
+  "format": "best",
+  "upload_config": {
+    "type": "webdav",
+    "webdav": {
+      "url": "https://webdav.example.com",
+      "username": "user",
+      "password": "pass",
+      "remotePath": "/videos"
+    }
+  }
+}
+```
+
+**Example with S3 upload:**
+```json
+{
+  "url": "https://example.com/video",
+  "format": "best",
+  "upload_config": {
+    "type": "s3",
+    "s3": {
+      "region": "us-east-1",
+      "bucket": "my-bucket",
+      "accessKeyId": "YOUR_ACCESS_KEY",
+      "secretAccessKey": "YOUR_SECRET_KEY",
+      "prefix": "videos",
+      "publicUrl": "https://cdn.example.com"
+    }
+  }
+}
+```
 
 ## Docker Compose Configuration
 

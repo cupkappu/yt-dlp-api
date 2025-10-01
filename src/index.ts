@@ -11,6 +11,8 @@ import {
 import { spawn } from "child_process";
 import { promisify } from "util";
 import { exec as execCallback } from "child_process";
+import { UploadService, UploadConfig } from "./upload-service.js";
+import { resolve } from "path";
 
 const exec = promisify(execCallback);
 
@@ -73,7 +75,7 @@ class YtDlpMcpServer {
           },
           {
             name: "download_video",
-            description: "Download a video with specified options",
+            description: "Download a video with specified options, optionally upload to WebDAV or S3",
             inputSchema: {
               type: "object",
               properties: {
@@ -99,6 +101,38 @@ class YtDlpMcpServer {
                   type: "string",
                   description: "Audio format when extracting audio (mp3, m4a, etc.)",
                   default: "mp3",
+                },
+                upload_config: {
+                  type: "object",
+                  description: "Upload configuration for WebDAV or S3",
+                  properties: {
+                    type: {
+                      type: "string",
+                      enum: ["webdav", "s3"],
+                      description: "Upload destination type",
+                    },
+                    webdav: {
+                      type: "object",
+                      properties: {
+                        url: { type: "string", description: "WebDAV server URL" },
+                        username: { type: "string", description: "WebDAV username" },
+                        password: { type: "string", description: "WebDAV password" },
+                        remotePath: { type: "string", description: "Remote directory path (optional)" },
+                      },
+                    },
+                    s3: {
+                      type: "object",
+                      properties: {
+                        endpoint: { type: "string", description: "S3 endpoint URL (optional, for S3-compatible services)" },
+                        region: { type: "string", description: "AWS region" },
+                        bucket: { type: "string", description: "S3 bucket name" },
+                        accessKeyId: { type: "string", description: "AWS access key ID" },
+                        secretAccessKey: { type: "string", description: "AWS secret access key" },
+                        prefix: { type: "string", description: "S3 key prefix (optional)" },
+                        publicUrl: { type: "string", description: "Public URL base for downloaded files (optional)" },
+                      },
+                    },
+                  },
                 },
               },
               required: ["url"],
@@ -227,17 +261,19 @@ class YtDlpMcpServer {
   }
 
   private async handleDownloadVideo(args: any) {
-    const { url, format = "best", output_path, extract_audio = false, audio_format = "mp3" } = args;
+    const { url, format = "best", output_path, extract_audio = false, audio_format = "mp3", upload_config } = args;
 
     if (!url || typeof url !== "string") {
       throw new Error("URL is required and must be a string");
     }
 
-    const commandArgs = [];
-
-    if (output_path) {
-      commandArgs.push("-o", output_path);
-    }
+    // Generate a unique output path if not specified
+    const outputTemplate = output_path || "%(title)s.%(ext)s";
+    
+    const commandArgs = [
+      "-o", outputTemplate,
+      "--print", "after_move:filepath"  // Print the final file path after download
+    ];
 
     if (extract_audio) {
       commandArgs.push("-x", "--audio-format", audio_format);
@@ -249,11 +285,34 @@ class YtDlpMcpServer {
 
     const { stdout, stderr } = await this.runYtDlpCommand(commandArgs);
 
+    // Extract the downloaded file path from stdout
+    const downloadedFilePath = stdout.trim().split('\n').pop()?.trim() || "";
+    
+    if (!downloadedFilePath) {
+      throw new Error("Could not determine downloaded file path");
+    }
+
+    // Resolve to absolute path
+    const absolutePath = resolve(process.cwd(), downloadedFilePath);
+
+    let response = `Download completed successfully.\nFile saved to: ${absolutePath}`;
+
+    // Upload if configuration is provided
+    if (upload_config) {
+      try {
+        const uploadService = new UploadService(upload_config as UploadConfig);
+        const downloadUrl = await uploadService.uploadFile(absolutePath);
+        response += `\n\nFile uploaded successfully!\nDownload URL: ${downloadUrl}`;
+      } catch (uploadError) {
+        response += `\n\nUpload failed: ${uploadError instanceof Error ? uploadError.message : String(uploadError)}`;
+      }
+    }
+
     return {
       content: [
         {
           type: "text",
-          text: `Download completed successfully.\n${stdout || stderr}`,
+          text: response,
         },
       ],
     };
