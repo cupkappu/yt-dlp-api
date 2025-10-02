@@ -43,7 +43,68 @@ export class UploadService {
           accessKeyId: config.s3.accessKeyId,
           secretAccessKey: config.s3.secretAccessKey,
         },
+        forcePathStyle: true, // Important for MinIO and custom S3 endpoints
       });
+    }
+  }
+
+  /**
+   * Create upload configuration from environment variables
+   * @returns UploadConfig or null if no upload is configured
+   */
+  static createFromEnvironment(): UploadConfig | null {
+    const uploadType = process.env.UPLOAD_TYPE;
+    
+    if (!uploadType) {
+      return null;
+    }
+
+    if (uploadType === "webdav") {
+      const url = process.env.WEBDAV_URL;
+      const username = process.env.WEBDAV_USERNAME;
+      const password = process.env.WEBDAV_PASSWORD;
+      const remotePath = process.env.WEBDAV_REMOTE_PATH;
+
+      if (!url || !username || !password) {
+        throw new Error("Missing required WebDAV environment variables: WEBDAV_URL, WEBDAV_USERNAME, WEBDAV_PASSWORD");
+      }
+
+      return {
+        type: "webdav",
+        webdav: {
+          url,
+          username,
+          password,
+          remotePath,
+        },
+      };
+    } else if (uploadType === "s3") {
+      const region = process.env.S3_REGION;
+      const bucket = process.env.S3_BUCKET;
+      const accessKeyId = process.env.S3_ACCESS_KEY_ID;
+      const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY;
+      const endpoint = process.env.S3_ENDPOINT;
+      const prefix = process.env.S3_PREFIX;
+      const publicUrl = process.env.S3_PUBLIC_URL;
+
+      if (!region || !bucket || !accessKeyId || !secretAccessKey) {
+        throw new Error("Missing required S3 environment variables: S3_REGION, S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY");
+      }
+
+      return {
+        type: "s3",
+        s3: {
+          region,
+          bucket,
+          accessKeyId,
+          secretAccessKey,
+          endpoint,
+          prefix,
+          publicUrl,
+        },
+      };
+    } else {
+      throw new Error(`Unsupported upload type: ${uploadType}. Supported types: webdav, s3`);
     }
   }
 

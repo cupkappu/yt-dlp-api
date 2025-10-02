@@ -1,43 +1,45 @@
 # Upload Configuration Examples
 
-This document provides examples of how to use the upload feature with WebDAV and S3.
+This document provides examples of how to configure and use the upload feature with WebDAV and S3 via environment variables.
 
-## WebDAV Upload Example
+## WebDAV Upload Examples
 
 ### Basic WebDAV Configuration
 
+**Environment Variables:**
+```bash
+UPLOAD_TYPE=webdav
+WEBDAV_URL=https://webdav.example.com
+WEBDAV_USERNAME=your-username
+WEBDAV_PASSWORD=your-password
+WEBDAV_REMOTE_PATH=/videos
+```
+
+**MCP Request:**
 ```json
 {
   "url": "https://www.youtube.com/watch?v=example",
-  "format": "best",
-  "upload_config": {
-    "type": "webdav",
-    "webdav": {
-      "url": "https://webdav.example.com",
-      "username": "your-username",
-      "password": "your-password",
-      "remotePath": "/videos"
-    }
-  }
+  "format": "best"
 }
 ```
 
 ### WebDAV with Nextcloud
 
+**Environment Variables:**
+```bash
+UPLOAD_TYPE=webdav
+WEBDAV_URL=https://nextcloud.example.com/remote.php/dav/files/username
+WEBDAV_USERNAME=your-username
+WEBDAV_PASSWORD=your-app-password
+WEBDAV_REMOTE_PATH=/Music
+```
+
+**MCP Request:**
 ```json
 {
   "url": "https://www.youtube.com/watch?v=example",
   "extract_audio": true,
-  "audio_format": "mp3",
-  "upload_config": {
-    "type": "webdav",
-    "webdav": {
-      "url": "https://nextcloud.example.com/remote.php/dav/files/username",
-      "username": "your-username",
-      "password": "your-app-password",
-      "remotePath": "/Music"
-    }
-  }
+  "audio_format": "mp3"
 }
 ```
 
@@ -45,82 +47,84 @@ This document provides examples of how to use the upload feature with WebDAV and
 
 ### AWS S3 Configuration
 
+**Environment Variables:**
+```bash
+UPLOAD_TYPE=s3
+S3_REGION=us-east-1
+S3_BUCKET=my-video-bucket
+S3_ACCESS_KEY_ID=AKIA...
+S3_SECRET_ACCESS_KEY=...
+S3_PREFIX=downloads
+```
+
 ```json
 {
   "url": "https://www.youtube.com/watch?v=example",
-  "format": "best",
-  "upload_config": {
-    "type": "s3",
-    "s3": {
-      "region": "us-east-1",
-      "bucket": "my-video-bucket",
-      "accessKeyId": "AKIAIOSFODNN7EXAMPLE",
-      "secretAccessKey": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-      "prefix": "videos/youtube"
-    }
-  }
+  "format": "best"
 }
 ```
 
 ### S3 with Custom Public URL (CloudFront)
 
+**Environment Variables:**
+```bash
+UPLOAD_TYPE=s3
+S3_REGION=us-east-1
+S3_BUCKET=my-video-bucket
+S3_ACCESS_KEY_ID=AKIA...
+S3_SECRET_ACCESS_KEY=...
+S3_PREFIX=videos
+S3_PUBLIC_URL=https://cdn.example.com
+```
+
+**MCP Request:**
 ```json
 {
   "url": "https://www.youtube.com/watch?v=example",
-  "format": "best",
-  "upload_config": {
-    "type": "s3",
-    "s3": {
-      "region": "us-east-1",
-      "bucket": "my-video-bucket",
-      "accessKeyId": "AKIAIOSFODNN7EXAMPLE",
-      "secretAccessKey": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-      "prefix": "videos",
-      "publicUrl": "https://cdn.example.com"
-    }
-  }
+  "format": "best"
 }
 ```
 
 ### MinIO (S3-Compatible) Configuration
 
+**Environment Variables:**
+```bash
+UPLOAD_TYPE=s3
+S3_ENDPOINT=https://minio.example.com
+S3_REGION=us-east-1
+S3_BUCKET=videos
+S3_ACCESS_KEY_ID=minioadmin
+S3_SECRET_ACCESS_KEY=minioadmin123
+S3_PREFIX=youtube
+S3_PUBLIC_URL=https://minio.example.com/videos
+```
+
 ```json
 {
   "url": "https://www.youtube.com/watch?v=example",
-  "format": "best",
-  "upload_config": {
-    "type": "s3",
-    "s3": {
-      "endpoint": "https://minio.example.com",
-      "region": "us-east-1",
-      "bucket": "videos",
-      "accessKeyId": "minioadmin",
-      "secretAccessKey": "minioadmin",
-      "prefix": "downloads",
-      "publicUrl": "https://minio.example.com/videos"
-    }
-  }
+  "format": "best"
 }
 ```
 
 ### DigitalOcean Spaces Configuration
 
+**Environment Variables:**
+```bash
+UPLOAD_TYPE=s3
+S3_ENDPOINT=https://nyc3.digitaloceanspaces.com
+S3_REGION=nyc3
+S3_BUCKET=my-space-name
+S3_ACCESS_KEY_ID=YOUR_SPACES_KEY
+S3_SECRET_ACCESS_KEY=YOUR_SPACES_SECRET
+S3_PREFIX=videos
+S3_PUBLIC_URL=https://my-space-name.nyc3.cdn.digitaloceanspaces.com
+```
+
+**MCP Request:**
 ```json
 {
   "url": "https://www.youtube.com/watch?v=example",
-  "format": "best",
-  "upload_config": {
-    "type": "s3",
-    "s3": {
-      "endpoint": "https://nyc3.digitaloceanspaces.com",
-      "region": "nyc3",
-      "bucket": "my-space-name",
-      "accessKeyId": "YOUR_SPACES_KEY",
-      "secretAccessKey": "YOUR_SPACES_SECRET",
-      "prefix": "videos",
-      "publicUrl": "https://my-space-name.nyc3.cdn.digitaloceanspaces.com"
-    }
-  }
+  "format": "best"
 }
 ```
 
@@ -128,41 +132,79 @@ This document provides examples of how to use the upload feature with WebDAV and
 
 ### Extract MP3 and Upload to WebDAV
 
+**Environment Variables:**
+```bash
+UPLOAD_TYPE=webdav
+WEBDAV_URL=https://webdav.example.com
+WEBDAV_USERNAME=your-username
+WEBDAV_PASSWORD=your-password
+WEBDAV_REMOTE_PATH=/music
+```
+
 ```json
 {
   "url": "https://www.youtube.com/watch?v=example",
   "extract_audio": true,
-  "audio_format": "mp3",
-  "upload_config": {
-    "type": "webdav",
-    "webdav": {
-      "url": "https://webdav.example.com",
-      "username": "your-username",
-      "password": "your-password",
-      "remotePath": "/music"
-    }
-  }
+  "audio_format": "mp3"
 }
 ```
 
 ### Extract AAC and Upload to S3
 
+**Environment Variables:**
+```bash
+UPLOAD_TYPE=s3
+S3_REGION=us-west-2
+S3_BUCKET=my-audio-bucket
+S3_ACCESS_KEY_ID=YOUR_ACCESS_KEY
+S3_SECRET_ACCESS_KEY=YOUR_SECRET_KEY
+S3_PREFIX=audio/youtube
+```
+
+**MCP Request:**
 ```json
 {
   "url": "https://www.youtube.com/watch?v=example",
   "extract_audio": true,
-  "audio_format": "m4a",
-  "upload_config": {
-    "type": "s3",
-    "s3": {
-      "region": "us-west-2",
-      "bucket": "my-audio-bucket",
-      "accessKeyId": "YOUR_ACCESS_KEY",
-      "secretAccessKey": "YOUR_SECRET_KEY",
-      "prefix": "audio/youtube"
-    }
-  }
+  "audio_format": "m4a"
 }
+```
+
+## Using with Docker
+
+### Setting Environment Variables with Docker
+
+**Using docker run:**
+```bash
+docker run -d \
+  -e UPLOAD_TYPE=s3 \
+  -e S3_REGION=us-east-1 \
+  -e S3_BUCKET=my-bucket \
+  -e S3_ACCESS_KEY_ID=YOUR_KEY \
+  -e S3_SECRET_ACCESS_KEY=YOUR_SECRET \
+  yt-dlp-mcp-server:latest
+```
+
+**Using docker-compose with .env file:**
+
+Create a `.env` file:
+```bash
+UPLOAD_TYPE=webdav
+WEBDAV_URL=https://webdav.example.com
+WEBDAV_USERNAME=your-username
+WEBDAV_PASSWORD=your-password
+WEBDAV_REMOTE_PATH=/videos
+```
+
+Update `docker-compose.yml`:
+```yaml
+version: '3.8'
+services:
+  yt-dlp-mcp-server:
+    build: .
+    env_file:
+      - .env
+    restart: unless-stopped
 ```
 
 ## Response Format
@@ -192,6 +234,8 @@ Download URL: https://my-bucket.s3.us-east-1.amazonaws.com/videos/file.mp4
 1. **Never commit credentials**: Keep your credentials in environment variables or secure configuration management
 2. **Use IAM roles**: For AWS S3, consider using IAM roles instead of access keys when running in AWS
 3. **App passwords**: For WebDAV services like Nextcloud, use app-specific passwords
+4. **Environment files**: Use `.env` files for local development but never commit them to version control
+5. **Secret management**: For production deployments, use proper secret management systems like AWS Secrets Manager, Azure Key Vault, or Kubernetes Secrets
 4. **Bucket permissions**: Ensure your S3 bucket has appropriate public read permissions if you want the URLs to be accessible
 5. **HTTPS**: Always use HTTPS endpoints for security
 

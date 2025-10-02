@@ -75,7 +75,7 @@ class YtDlpMcpServer {
           },
           {
             name: "download_video",
-            description: "Download a video with specified options, optionally upload to WebDAV or S3",
+            description: "Download a video with specified options. Upload to WebDAV or S3 if configured via environment variables.",
             inputSchema: {
               type: "object",
               properties: {
@@ -101,38 +101,6 @@ class YtDlpMcpServer {
                   type: "string",
                   description: "Audio format when extracting audio (mp3, m4a, etc.)",
                   default: "mp3",
-                },
-                upload_config: {
-                  type: "object",
-                  description: "Upload configuration for WebDAV or S3",
-                  properties: {
-                    type: {
-                      type: "string",
-                      enum: ["webdav", "s3"],
-                      description: "Upload destination type",
-                    },
-                    webdav: {
-                      type: "object",
-                      properties: {
-                        url: { type: "string", description: "WebDAV server URL" },
-                        username: { type: "string", description: "WebDAV username" },
-                        password: { type: "string", description: "WebDAV password" },
-                        remotePath: { type: "string", description: "Remote directory path (optional)" },
-                      },
-                    },
-                    s3: {
-                      type: "object",
-                      properties: {
-                        endpoint: { type: "string", description: "S3 endpoint URL (optional, for S3-compatible services)" },
-                        region: { type: "string", description: "AWS region" },
-                        bucket: { type: "string", description: "S3 bucket name" },
-                        accessKeyId: { type: "string", description: "AWS access key ID" },
-                        secretAccessKey: { type: "string", description: "AWS secret access key" },
-                        prefix: { type: "string", description: "S3 key prefix (optional)" },
-                        publicUrl: { type: "string", description: "Public URL base for downloaded files (optional)" },
-                      },
-                    },
-                  },
                 },
               },
               required: ["url"],
@@ -179,15 +147,15 @@ class YtDlpMcpServer {
       let stdout = "";
       let stderr = "";
 
-      ytDlpProcess.stdout?.on("data", (data) => {
+      ytDlpProcess.stdout?.on("data", (data: any) => {
         stdout += data.toString();
       });
 
-      ytDlpProcess.stderr?.on("data", (data) => {
+      ytDlpProcess.stderr?.on("data", (data: any) => {
         stderr += data.toString();
       });
 
-      ytDlpProcess.on("close", (code) => {
+      ytDlpProcess.on("close", (code: number | null) => {
         if (code === 0) {
           resolve({ stdout, stderr });
         } else {
@@ -195,7 +163,7 @@ class YtDlpMcpServer {
         }
       });
 
-      ytDlpProcess.on("error", (error) => {
+      ytDlpProcess.on("error", (error: Error) => {
         reject(new Error(`Failed to start yt-dlp: ${error.message}`));
       });
     });
@@ -261,7 +229,7 @@ class YtDlpMcpServer {
   }
 
   private async handleDownloadVideo(args: any) {
-    const { url, format = "best", output_path, extract_audio = false, audio_format = "mp3", upload_config } = args;
+    const { url, format = "best", output_path, extract_audio = false, audio_format = "mp3" } = args;
 
     if (!url || typeof url !== "string") {
       throw new Error("URL is required and must be a string");
@@ -297,15 +265,20 @@ class YtDlpMcpServer {
 
     let response = `Download completed successfully.\nFile saved to: ${absolutePath}`;
 
-    // Upload if configuration is provided
-    if (upload_config) {
-      try {
-        const uploadService = new UploadService(upload_config as UploadConfig);
-        const downloadUrl = await uploadService.uploadFile(absolutePath);
-        response += `\n\nFile uploaded successfully!\nDownload URL: ${downloadUrl}`;
-      } catch (uploadError) {
-        response += `\n\nUpload failed: ${uploadError instanceof Error ? uploadError.message : String(uploadError)}`;
+    // Check if upload is configured via environment variables
+    try {
+      const uploadConfig = UploadService.createFromEnvironment();
+      if (uploadConfig) {
+        try {
+          const uploadService = new UploadService(uploadConfig);
+          const downloadUrl = await uploadService.uploadFile(absolutePath);
+          response += `\n\nFile uploaded successfully!\nDownload URL: ${downloadUrl}`;
+        } catch (uploadError) {
+          response += `\n\nUpload failed: ${uploadError instanceof Error ? uploadError.message : String(uploadError)}`;
+        }
       }
+    } catch (configError) {
+      response += `\n\nUpload configuration error: ${configError instanceof Error ? configError.message : String(configError)}`;
     }
 
     return {
