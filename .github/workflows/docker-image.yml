@@ -66,6 +66,17 @@ jobs:
         uses: docker/metadata-action@v3
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE }}
+          # 配置标签生成规则
+          tags: |
+            # 对于 main 分支，生成 latest 和 main 标签
+            type=ref,event=branch,enable={{is_default_branch}}
+            type=raw,value=latest,enable={{is_default_branch}}
+            # 对于其他分支，使用分支名
+            type=ref,event=branch,enable={{is_default_branch}}
+            # 对于 tag，使用 tag 名和语义化版本
+            type=ref,event=tag
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
 
       # 构建并上传
       - name: Build and push
